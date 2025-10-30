@@ -3,6 +3,9 @@ import random
 
 pygame.init()
 pygame.mixer.init()
+gravedad =2000.0
+rozamiento = 0.5
+pl = []
 def menu():
     ancho,alto=600,600
     pantalla=pygame.display.set_mode((ancho,alto))
@@ -25,7 +28,32 @@ def menu():
                 return "salir"
         pygame.display.flip()
         clock.tick(60)
+def crear_bola(x, y, vx, vy, r=14):
+    color = (random.randint(1,255), random.randint(1,255), random.randint(1,255))
+    pl.append({
+        "x": float(x), "y": float(y),   # posición en float para precisión
+        "vx": float(vx), "vy": float(vy),  # velocidad
+        "r": r, "color": color
+    })
+def actualizar_bolas(dt):
+    """Integra la física de todas las bolas en dt segundos."""
+    # Rozamiento aplicado como decaimiento exponencial por segundo
+    drag = rozamiento ** dt
+    for b in pl:
+        # 1) fuerzas -> aceleraciones: solo gravedad en Y
+        b["vy"] += gravedad * dt        # [m/s] = [m/s^2]*[s]            v = v_0 +a*t
+
+        # 2) rozamiento (reduce gradualmente la velocidad)
+        b["vx"] *= drag
+        b["vy"] *= drag
+
+        # 3) integración de posición
+        b["x"]  += b["vx"] * dt        #[m] = [m/s]*[s]            x = x_0 + vt
+        b["y"]  += b["vy"] * dt
+
+        r = b["r"]
 def juego():
+    hay_pelotas= False
     screen=pygame.display.set_mode((600, 600))
     clock=pygame.time.Clock()
     running=True
@@ -36,17 +64,13 @@ def juego():
     pos_mouse=[]
     espesor=10
     color_linea=(255,0,0)
-    pl = []
-    for i in range(5):
-        x = random.randint(30, 570)
-        y = random.randint(30, 570)
-        r = 15
-        pl.append(pygame.Rect(x - r, y - r, r * 2, r * 2))
     cambio_timer = 0
     timer_especial = 0
     pl_e = None
     puntos=0
+    duracion=60000
     while running:
+        dt = clock.tick(120) / 1000.0
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
                 running=False
@@ -57,6 +81,7 @@ def juego():
                 if 550 <= mouse_x <= 590 and 10 <= mouse_y <= 50:
                     pygame.time.delay(200)
                     return "menu"
+        actualizar_bolas(dt)
         screen.blit(pared, (0, 0))
         screen.blit(exit, (550, 10))
         cambio_timer += clock.get_time()
@@ -65,15 +90,19 @@ def juego():
             pl.clear()
             for i in range(5):
                 x = random.randint(30, 570)
-                y = random.randint(30, 570)
-                r = 15
-                pl.append(pygame.Rect(x - r, y - r, r * 2, r * 2))
+                y = 610
+                vx = 0
+                vy = random.uniform(-1000, -1800)
+                crear_bola(x, y, vx, vy)
             cambio_timer = 0
+            if not hay_pelotas:
+                tiempo_inicio=pygame.time.get_ticks()
+                hay_pelotas = True
         if timer_especial >= 10000 and not pl_e:
             pl_e = pygame.Rect(random.randint(30, 570) - 15, random.randint(30, 570) - 15, 30, 30)
             timer_especial = 0
         for p in pl:
-            pygame.draw.ellipse(screen, (0, 0, 255), p)
+            pygame.draw.circle(screen, p["color"], (int(p["x"]), int(p["y"])), p["r"])
         if pl_e:
             pygame.draw.rect(screen, (255, 0, 0), pl_e)
         for pos in pos_mouse:
@@ -86,9 +115,10 @@ def juego():
             pos_mouse.clear()
             linea=None
         if linea:
-            for p in pl[:]:
-                if linea.colliderect(p):
-                    pl.remove(p)
+            for b in pl[:]:
+                rect_b = pygame.Rect(b["x"]-b["r"], b["y"]-b["r"], b["r"]*2, b["r"]*2)
+                if linea.colliderect(rect_b):
+                    pl.remove(b)
                     cortar_sound.play()
                     puntos += 1
                     break
@@ -98,6 +128,21 @@ def juego():
                 puntos += 5
         fuente = pygame.font.Font(None, 36)
         texto = fuente.render("Puntos: {}".format(puntos), True, (0, 0, 0))
+        tiempo_actual = pygame.time.get_ticks()
+        tiempo_restante = duracion / 1000
+        if hay_pelotas:
+            tiempo_restante = (duracion - (tiempo_actual - tiempo_inicio)) / 1000
+        if tiempo_restante <= 0:
+            tiempo_restante = 0
+            texto_final = fuente.render("Tiempo agotado! Puntos finales: {}".format(puntos), True, (0, 0, 0))
+            screen.blit(texto_final, (100, 300))
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            return "menu"
+        minutos = int(tiempo_restante // 60)
+        segundos = int(tiempo_restante % 60)
+        texto_timer = fuente.render("Tiempo: {}:{:02d}".format(minutos, segundos), True, (0, 0, 0))
+        screen.blit(texto_timer, (400, 10))
         screen.blit(texto, (10, 10))
         pygame.display.flip()
         clock.tick(120)
