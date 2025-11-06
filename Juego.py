@@ -114,28 +114,26 @@ def menu_dificultad():
                 return "menu"
         pygame.display.flip()
         clock.tick(60)
-def crear_bola(x, y, vx, vy, r=14):
-    color = (random.randint(1,255), random.randint(1,255), random.randint(1,255))
+def crear_bola(x, y, vx, vy, imagenes_frutas, r=14):
+    imagen = random.choice(imagenes_frutas)
     pl.append({
         "x": float(x), "y": float(y),   # posición en float para precisión
         "vx": float(vx), "vy": float(vy),  # velocidad
-        "r": r, "color": color
+        "r": r, "imagen": imagen
     })
-def crear_bola_especial(x, y, vx, vy, r=30):
+def crear_bola_especial(x, y, vx, vy, imagen_especial, r=30):
     global pl_e
-    color = (255, 0, 0)  # Color rojo para la bola especial
     pl_e = {
         "x": float(x), "y": float(y),   # posición en float para precisión
         "vx": float(vx), "vy": float(vy),  # velocidad
-        "r": r, "color": color
+        "r": r, "imagen": imagen_especial
     }
-def crear_bomba(x, y, vx, vy, r=20):
+def crear_bomba(x, y, vx, vy, imagen_bomba, r=20):
     global pl_b
-    color = (0, 0, 0)  # Color negro
     pl_b.append({
         "x": float(x), "y": float(y),   # posición en float para precisión
         "vx": float(vx), "vy": float(vy),  # velocidad
-        "r": r, "color": color
+        "r": r, "imagen": imagen_bomba
     })
 def actualizar_bolas(dt):
     """Integra la física de todas las bolas en dt segundos."""
@@ -249,6 +247,12 @@ def guardar_puntaje(pantalla, puntaje):
         datos["Puntaje"] = datos["Puntaje"][:10]
     with open("datos.json", "w") as f:
         json.dump(datos, f, indent=4)
+def explosion_particulas(screen, x, y, cantidad=15):
+    for _ in range(cantidad):
+        dx = random.uniform(-30, 30)
+        dy = random.uniform(-30, 30)
+        color = (255, random.randint(100, 180), 0)
+        pygame.draw.circle(screen, color, (int(x + dx), int(y + dy)), random.randint(3, 6))
 def juego():
     global pl_e
     global pl
@@ -267,9 +271,20 @@ def juego():
     pared=pygame.image.load("Multimedia/Imagenes/Wood.jpg").convert()
     pared=pygame.transform.scale(pared, (800, 600))
     cortar_sound=pygame.mixer.Sound("Multimedia/Audio/KnifeSlice.ogg")
+    explosion_sound=pygame.mixer.Sound("Multimedia/Audio/explosion.mp3")
     exit=pygame.image.load("Multimedia/Imagenes/exitRight.png").convert_alpha()
     corazon=pygame.image.load("Multimedia/Imagenes/Corazon.png").convert_alpha()
     corazon = pygame.transform.smoothscale(corazon, (50, 50))
+    imagenes_frutas = [
+    pygame.image.load("Multimedia/Imagenes/fruta1.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta2.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta3.png").convert_alpha()
+    ]
+    imagen_especial = pygame.image.load("Multimedia/Imagenes/especial.png").convert_alpha()
+    imagen_bomba = pygame.image.load("Multimedia/Imagenes/bomba.png").convert_alpha()
+    imagenes_frutas = [pygame.transform.smoothscale(img, (60, 60)) for img in imagenes_frutas]
+    imagen_especial = pygame.transform.smoothscale(imagen_especial, (80, 80))
+    imagen_bomba = pygame.transform.smoothscale(imagen_bomba, (70, 70))
     pos_mouse=[]
     # Inicializar MediaPipe Hands
     mp_hands = mp.solutions.hands
@@ -367,14 +382,19 @@ def juego():
             for i in range(cantidad_pelotas):
                 x = random.randint(30, 770)
                 y = 610
-                vx = 0
+                if 30 < x < 130:
+                    vx = 1000
+                elif 670 < x < 770:
+                    vx = -1000
+                else:
+                    vx = 0
                 if dificultad==0:
                     vy = random.uniform(-1500, -1800)
                 elif dificultad==1:
                     vy = random.uniform(-1800, -2600)
                 else:
                     vy = random.uniform(-2000, -3000)
-                crear_bola(x, y, vx, vy)
+                crear_bola(x, y, vx, vy, imagenes_frutas)
             cambio_timer = 0
             if not hay_pelotas:
                 tiempo_inicio=pygame.time.get_ticks()
@@ -386,7 +406,7 @@ def juego():
                 vy = random.uniform(-1800, -2600)
             else:
                 vy = random.uniform(-2000, -3000)
-            crear_bola_especial(random.randint(30, 770), 610, 0, vy)
+            crear_bola_especial(random.randint(30, 770), 610, 0, vy, imagen_especial)
             timer_especial = 0
         if timer_bomba > limite*2:
             pl_b.clear()
@@ -400,14 +420,20 @@ def juego():
                     vy = random.uniform(-1800, -2600)
                 else:
                     vy = random.uniform(-2000, -3000)
-                crear_bomba(x, y, vx, vy)
+                crear_bomba(x, y, vx, vy, imagen_bomba)
             timer_bomba = 0
         for p in pl:
-            pygame.draw.circle(screen, p["color"], (int(p["x"]), int(p["y"])), p["r"])
+            img = p["imagen"]
+            rect = img.get_rect(center=(int(p["x"]), int(p["y"])))
+            screen.blit(img, rect)
         if pl_e:
-            pygame.draw.circle(screen, pl_e["color"], (int(pl_e["x"]), int(pl_e["y"])), pl_e["r"])
+            img = pl_e["imagen"]
+            rect = img.get_rect(center=(int(pl_e["x"]), int(pl_e["y"])))
+            screen.blit(img, rect)
         for pb in pl_b:
-            pygame.draw.circle(screen, pb["color"], (int(pb["x"]), int(pb["y"])), pb["r"])
+            img = pb["imagen"]
+            rect = img.get_rect(center=(int(pb["x"]), int(pb["y"])))
+            screen.blit(img, rect)
         for pos in pos_mouse:
             if len(pos_mouse)>7:
                 pos_mouse.pop(0)
@@ -434,7 +460,8 @@ def juego():
                 rect_bb = pygame.Rect(bb["x"]-bb["r"], bb["y"]-bb["r"], bb["r"]*2, bb["r"]*2)
                 if linea.colliderect(rect_bb):
                     pl_b.remove(bb)
-                    cortar_sound.play()
+                    explosion_particulas(screen, bb["x"], bb["y"])
+                    explosion_sound.play()
                     vidas -= 1
                     if vidas <= 0:
                         texto_final = pygame.font.Font(None, 72).render("Juego Terminado! Puntos finales: {}".format(puntos), True, (255, 0, 0))
