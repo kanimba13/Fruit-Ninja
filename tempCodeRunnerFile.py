@@ -1,2 +1,0 @@
-
-                if espada_animando:
