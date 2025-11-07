@@ -516,7 +516,7 @@ def juego():
             timer_especial = 0
         if timer_bomba > limite*2:
             pl_b.clear()
-            for i in range(cantidad_bombas:=dificultad+2):
+            for _ in range(dificultad+2):
                 x = random.randint(30, 770)
                 y = 610
                 vx = 0
@@ -540,14 +540,7 @@ def juego():
             img = pb["imagen"]
             rect = img.get_rect(center=(int(pb["x"]), int(pb["y"])))
             screen.blit(img, rect)
-        linea = None
-        max=3
         if pos_actual:
-            pos_mouse.append(pos_actual)
-            if len(pos_mouse)>max:
-                pos_mouse.pop(0)
-            if len(pos_mouse) > 1:
-                    linea = pygame.draw.lines(screen, color_linea, False, pos_mouse, espesor)
             # --- Dibujar espada o animación ---
             if is_pinching:
                 if espada_animando:
@@ -573,7 +566,6 @@ def juego():
                 rect_espada = imagen_espada_enfundada.get_rect(center=pos_actual)
                 screen.blit(imagen_espada_enfundada, rect_espada)
                 pos_mouse.clear()
-                linea = None
         if is_pinching:
             punta_rect = imagen_espada.get_rect(center=pos_actual)
             for b in pl[:]:
