@@ -48,15 +48,79 @@ def menu():
             if 495 <= mouse_x <= 695 and 230 <= mouse_y <= 380:
                 pygame.time.delay(200)
                 return "menu_puntajes"
+            if 115 <= mouse_x <= 470 and 230 <= mouse_y <= 380:
+                pygame.time.delay(200)
+                return "menu_ayuda"
             if 85 <= mouse_x <= 695 and 405 <= mouse_y <= 550:
                 return "salir"
+        pygame.display.flip()
+        clock.tick(60)
+def menu_ayuda():
+    import pygame
+    pygame.init()
+
+    ancho, alto = 800, 600
+    pantalla = pygame.display.set_mode((ancho, alto))
+    pygame.display.set_caption("Cortar Frutas")
+
+    # Fondo y botón salir
+    fondo = pygame.image.load("Multimedia/Imagenes/Menu_H_P.png").convert()
+    exit = pygame.image.load("Multimedia/Imagenes/exitRight.png").convert_alpha()
+    fondo = pygame.transform.scale(fondo, (ancho, alto))
+
+    # Fuente y color del texto
+    fuente_titulo = pygame.font.Font(None, 60)
+    fuente_texto = pygame.font.Font(None, 32)
+    color_titulo = (100, 0, 100)  
+    color_texto = (0, 0, 0)  # negro
+
+    # Texto de instrucciones
+    titulo = fuente_titulo.render("Cómo jugar", True, color_titulo)
+    instrucciones = [
+        "1  Usa tu mano frente a la cámara.",
+        "2  Une el pulgar y el índice para desenvainar la espada.",
+        "3  Mueve la mano para cortar las frutas en pantalla.",
+        "4  Cada fruta cortada suma puntos.",
+        "5  Evita las bombas, ¡te restan puntos!",
+        "6  Gana acumulando la mayor cantidad de puntos.",
+        "7  Cuando sueltes los dedos, la espada se enfunda."
+    ]
+
+    # Título y texto
+    running = True
+    clock = pygame.time.Clock()
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        pantalla.blit(fondo, (0, 0))
+        pantalla.blit(exit, (750, 10))
+
+        # Dibujar título
+        pantalla.blit(titulo, (ancho // 2 - titulo.get_width() // 2, 80))
+
+        # Dibujar texto línea por línea
+        y_offset = 180
+        for linea in instrucciones:
+            texto_render = fuente_texto.render(linea, True, color_texto)
+            pantalla.blit(texto_render, (100, y_offset))
+            y_offset += 45
+
+        # Botón salir
+        if pygame.mouse.get_pressed()[0]:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            if 750 <= mouse_x <= 790 and 20 <= mouse_y <= 50:
+                pygame.time.delay(200)
+                return "menu"
+
         pygame.display.flip()
         clock.tick(60)
 def menu_puntajes():
     ancho,alto=800,600
     pantalla=pygame.display.set_mode((ancho,alto))
     pygame.display.set_caption("Cortar Frutas")
-    fondo = pygame.image.load("Multimedia/Imagenes/Menu_P.png").convert()
+    fondo = pygame.image.load("Multimedia/Imagenes/Menu_H_P.png").convert()
     exit=pygame.image.load("Multimedia/Imagenes/exitRight.png").convert_alpha()
     fondo = pygame.transform.scale(fondo, (ancho, alto))
     pantalla.blit(fondo, (0, 0))
@@ -278,13 +342,29 @@ def juego():
     imagenes_frutas = [
     pygame.image.load("Multimedia/Imagenes/fruta1.png").convert_alpha(),
     pygame.image.load("Multimedia/Imagenes/fruta2.png").convert_alpha(),
-    pygame.image.load("Multimedia/Imagenes/fruta3.png").convert_alpha()
+    pygame.image.load("Multimedia/Imagenes/fruta3.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta4.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta5.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta6.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta7.png").convert_alpha(),
+    pygame.image.load("Multimedia/Imagenes/fruta8.png").convert_alpha()
     ]
     imagen_especial = pygame.image.load("Multimedia/Imagenes/especial.png").convert_alpha()
     imagen_bomba = pygame.image.load("Multimedia/Imagenes/bomba.png").convert_alpha()
     imagenes_frutas = [pygame.transform.smoothscale(img, (60, 60)) for img in imagenes_frutas]
     imagen_especial = pygame.transform.smoothscale(imagen_especial, (80, 80))
     imagen_bomba = pygame.transform.smoothscale(imagen_bomba, (70, 70))
+    imagen_espada_enfundada = pygame.image.load("Multimedia/Imagenes/espada_enfundada.png").convert_alpha()
+    imagen_espada_enfundada = pygame.transform.smoothscale(imagen_espada_enfundada, (20, 80))
+    espada=pygame.image.load("Multimedia/Imagenes/espada_90.png").convert_alpha()
+    imagen_espada=pygame.transform.smoothscale(espada, (20, 80))
+    imagen_espada_45=pygame.transform.smoothscale(pygame.image.load("Multimedia/Imagenes/espada_45.png").convert_alpha(), (80, 80))
+    imagen_espada_180=pygame.transform.smoothscale(pygame.image.load("Multimedia/Imagenes/espada_180.png").convert_alpha(), (80, 20))
+    anim_espada = [
+        imagen_espada,
+        imagen_espada_45,
+        imagen_espada_180
+        ]
     pos_mouse=[]
     # Inicializar MediaPipe Hands
     mp_hands = mp.solutions.hands
@@ -293,7 +373,7 @@ def juego():
 
     # Inicializar la cámara
     cap = cv2.VideoCapture(0)
-    espesor=10
+    espesor=5
     color_linea=(255,0,0)
     cambio_timer = 0
     timer_especial = 0
@@ -302,6 +382,11 @@ def juego():
     duracion=60000
     vidas=3
     is_pinching = False
+    espada_animando = False
+    frame_anim = 0
+    timer_anim = 0
+    pos_filtrada = None
+    alpha = 0.4
     while running:
         dt = clock.tick(120) / 1000.0
         for event in pygame.event.get():
@@ -336,23 +421,44 @@ def juego():
 
                 # Calcular la distancia entre los dedos
                 distance = np.sqrt(
-                    (thumb_tip.x - index_tip.x)**2 + 
-                    (thumb_tip.y - index_tip.y)**2
+                    (thumb_tip.x - index_tip.x) ** 2 +
+                    (thumb_tip.y - index_tip.y) ** 2
                 )
 
+                # --- Suavizado del movimiento (para evitar vibración) ---
+                x = int(index_tip.x * 800)
+                y = int(index_tip.y * 600)
+
+                if pos_filtrada is None:
+                    pos_filtrada = (x, y)
+                else:
+                    # Filtro de suavizado exponencial
+                    pos_filtrada = (
+                        int(alpha * x + (1 - alpha) * pos_filtrada[0]),
+                        int(alpha * y + (1 - alpha) * pos_filtrada[1])
+                    )
+
+                pos_actual = pos_filtrada
+
                 # Si los dedos están cerca (pinching)
-                if distance < 0.1:  # Ajusta el valor
+                if distance < 0.1:
                     is_pinching = True
-                    pos_mouse.append((int(index_tip.x * 800), int(index_tip.y * 600)))
+                    pos_mouse.append(pos_actual)
                 else:
                     is_pinching = False
+
+                # Dibujar mano (opcional)
                 mp_draw.draw_landmarks(
-                    frame, 
-                    hand_landmarks, 
+                    frame,
+                    hand_landmarks,
                     mp_hands.HAND_CONNECTIONS,
                     mp_draw.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=3),
                     mp_draw.DrawingSpec(color=(0, 255, 0), thickness=2)
                 )
+        else:
+            pos_filtrada = None
+            pos_actual = None
+            is_pinching = False
         actualizar_bolas(dt)
         if pl_e:
             actualizar_bolas_especial(dt)
@@ -434,35 +540,73 @@ def juego():
             img = pb["imagen"]
             rect = img.get_rect(center=(int(pb["x"]), int(pb["y"])))
             screen.blit(img, rect)
-        for pos in pos_mouse:
-            if len(pos_mouse)>7:
+        linea = None
+        max=3
+        if pos_actual:
+            pos_mouse.append(pos_actual)
+            if len(pos_mouse)>max:
                 pos_mouse.pop(0)
+            if len(pos_mouse) > 1:
+                    linea = pygame.draw.lines(screen, color_linea, False, pos_mouse, espesor)
+            # --- Dibujar espada o animación ---
+            if is_pinching:
+                if espada_animando:
+                    # Mostrar cuadro actual de animación
+                    screen.blit(anim_espada[frame_anim], anim_espada[frame_anim].get_rect(center=pos_actual))
+
+                    # Controlar el cambio de cuadro
+                    timer_anim += 1
+                    if timer_anim >= 5:  # velocidad del cambio (menor = más rápido)
+                        timer_anim = 0
+                        frame_anim += 1
+
+                    # Si se completan todos los cuadros, apagar la animación
+                    if frame_anim >= len(anim_espada):
+                        frame_anim = 0
+                        espada_animando = False
+                else:
+                    # Mostrar espada normal
+                    rect = imagen_espada.get_rect(center=pos_actual)
+                    screen.blit(imagen_espada, rect)
+                
+            else:
+                rect_espada = imagen_espada_enfundada.get_rect(center=pos_actual)
+                screen.blit(imagen_espada_enfundada, rect_espada)
+                pos_mouse.clear()
+                linea = None
         if is_pinching:
-            if len(pos_mouse)>1:
-                linea=pygame.draw.lines(screen, color_linea, False, pos_mouse, espesor)
-        else:
-            pos_mouse.clear()
-            linea=None
-        if linea:
+            punta_rect = imagen_espada.get_rect(center=pos_actual)
             for b in pl[:]:
                 rect_b = pygame.Rect(b["x"]-b["r"], b["y"]-b["r"], b["r"]*2, b["r"]*2)
-                if linea.colliderect(rect_b):
+                if punta_rect.colliderect(rect_b):
                     pl.remove(b)
                     cortar_sound.play()
                     puntos += 1
+                    if not espada_animando:
+                        espada_animando = True
+                        frame_anim = 0
+                        timer_anim = 0
                     break
             rect_b_e = pygame.Rect(pl_e["x"]-pl_e["r"], pl_e["y"]-pl_e["r"], pl_e["r"]*2, pl_e["r"]*2) if pl_e else None
-            if pl_e and linea.colliderect(rect_b_e):
+            if pl_e and punta_rect.colliderect(rect_b_e):
                 pl_e=None
                 cortar_sound.play()
                 puntos += 5
+                if not espada_animando:
+                    espada_animando = True
+                    frame_anim = 0
+                    timer_anim = 0
             for bb in pl_b[:]:
                 rect_bb = pygame.Rect(bb["x"]-bb["r"], bb["y"]-bb["r"], bb["r"]*2, bb["r"]*2)
-                if linea.colliderect(rect_bb):
+                if punta_rect.colliderect(rect_bb):
                     pl_b.remove(bb)
                     explosion_particulas(screen, bb["x"], bb["y"])
                     explosion_sound.play()
                     vidas -= 1
+                    if not espada_animando:
+                        espada_animando = True
+                        frame_anim = 0
+                        timer_anim = 0
                     if vidas <= 0:
                         texto_final = pygame.font.Font(None, 72).render("Juego Terminado! Puntos finales: {}".format(puntos), True, (255, 0, 0))
                         screen.blit(texto_final, (100, 300))
@@ -514,6 +658,8 @@ def main():
             pantalla_actual = menu_puntajes()
         elif pantalla_actual == "juego":
             pantalla_actual = juego()
+        elif pantalla_actual == "menu_ayuda":
+            pantalla_actual = menu_ayuda()
         elif pantalla_actual == "salir":
             break
     cv2.destroyAllWindows()
