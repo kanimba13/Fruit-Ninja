@@ -365,7 +365,6 @@ def juego():
         imagen_espada_45,
         imagen_espada_180
         ]
-    pos_mouse=[]
     # Inicializar MediaPipe Hands
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.7)
@@ -373,8 +372,6 @@ def juego():
 
     # Inicializar la cámara
     cap = cv2.VideoCapture(0)
-    espesor=5
-    color_linea=(255,0,0)
     cambio_timer = 0
     timer_especial = 0
     timer_bomba = 0
@@ -443,7 +440,6 @@ def juego():
                 # Si los dedos están cerca (pinching)
                 if distance < 0.1:
                     is_pinching = True
-                    pos_mouse.append(pos_actual)
                 else:
                     is_pinching = False
 
@@ -565,7 +561,6 @@ def juego():
             else:
                 rect_espada = imagen_espada_enfundada.get_rect(center=pos_actual)
                 screen.blit(imagen_espada_enfundada, rect_espada)
-                pos_mouse.clear()
         if is_pinching:
             punta_rect = imagen_espada.get_rect(center=pos_actual)
             for b in pl[:]:
@@ -604,7 +599,6 @@ def juego():
                         screen.blit(texto_final, (100, 300))
                         pygame.display.flip()
                         pl.clear()
-                        pos_mouse.clear()
                         cap.release()
                         guardar_puntaje(screen, puntos)
                         return "menu"
@@ -621,7 +615,6 @@ def juego():
             screen.blit(texto_final, (150, 300))
             pygame.display.flip()
             pl.clear()
-            pos_mouse.clear()
             cap.release()
             guardar_puntaje(screen, puntos)
             return "menu"
